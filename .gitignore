@@ -1,0 +1,21 @@
+# Build artifacts
+/target/
+
+# Sensitive configuration (use werss.toml.example as template)
+werss.toml
+.env
+
+# Fetched articles and sync state
+articles/
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Claude Code skill workspace (development only)
+skills/

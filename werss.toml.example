@@ -1,0 +1,15 @@
+# werss-cli configuration example
+# Copy this file to werss.toml and fill in your credentials
+
+[api]
+base = "http://your-server:8001"    # WeRSS API URL
+username = "your-username"
+password = "your-password"
+
+[sync]
+# "all" to fetch every MP, or a list of IDs
+target_mps = "all"
+# target_mps = ["MP_WXS_1234567890", "MP_WXS_0987654321"]
+output_dir = "./articles"
+workspace_dir = ""
+max_failures = 3
