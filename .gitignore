@@ -19,3 +19,4 @@ Thumbs.db
 
 # Claude Code skill workspace (development only)
 skills/
+dist/
