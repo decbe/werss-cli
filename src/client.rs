@@ -36,38 +36,75 @@ pub struct ArticleDetail {
 }
 
 async fn login(http: &reqwest::Client, base: &str, user: &str, pass: &str) -> Result<String> {
-    let resp = http
-        .post(format!("{}/api/v1/wx/auth/login", base))
-        .form(&[("username", user), ("password", pass)])
-        .send()
-        .await
-        .map_err(|e| {
-            if e.is_connect() {
-                anyhow!("Cannot connect to API at {}. Is the server running?", base)
-            } else {
-                anyhow!("Login request failed: {}", e)
+    const MAX_RETRIES: u32 = 3;
+    for attempt in 1..=MAX_RETRIES {
+        let resp_result = http
+            .post(format!("{}/api/v1/wx/auth/login", base))
+            .form(&[("username", user), ("password", pass)])
+            .send()
+            .await;
+
+        let resp = match resp_result {
+            Ok(resp) => resp,
+            Err(e) => {
+                if attempt < MAX_RETRIES && (e.is_connect() || e.is_timeout()) {
+                    eprintln!(
+                        "[WARN] Login attempt {}/{} failed: {}. Retrying...",
+                        attempt, MAX_RETRIES, e
+                    );
+                    tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+                    continue;
+                }
+                return Err(if e.is_connect() {
+                    anyhow!("Cannot connect to API at {}. Is the server running?", base)
+                } else {
+                    anyhow!("Login request failed: {}", e)
+                });
             }
-        })?;
-    let status = resp.status();
-    let body = resp.text().await?;
-    let resp: serde_json::Value = serde_json::from_str(&body).map_err(|_| {
-        anyhow!(
-            "API returned non-JSON (HTTP {}): {}...",
-            status,
-            body.chars().take(200).collect::<String>()
-        )
-    })?;
-    if resp["code"].as_i64() != Some(0) {
-        return Err(anyhow!(
-            "Login failed (code={}): {}",
-            resp["code"],
-            resp["message"].as_str().unwrap_or("unknown")
-        ));
+        };
+
+        let status = resp.status();
+        let body = resp.text().await?;
+        let json: Result<serde_json::Value> = serde_json::from_str(&body).map_err(|_| {
+            anyhow!(
+                "API returned non-JSON (HTTP {}): {}...",
+                status,
+                body.chars().take(200).collect::<String>()
+            )
+        });
+
+        let resp = match json {
+            Ok(value) => value,
+            Err(_e) if attempt < MAX_RETRIES && status.is_server_error() => {
+                eprintln!(
+                    "[WARN] Login returned HTTP {} with invalid body. Retrying...",
+                    status
+                );
+                tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+                continue;
+            }
+            Err(e) => return Err(e),
+        };
+
+        if resp["code"].as_i64() != Some(0) {
+            return Err(anyhow!(
+                "Login failed (code={}): {}",
+                resp["code"],
+                resp["message"].as_str().unwrap_or("unknown")
+            ));
+        }
+
+        return resp
+            .pointer("/data/access_token")
+            .and_then(|v| v.as_str())
+            .map(String::from)
+            .ok_or_else(|| anyhow!("Login succeeded but no access_token in response"));
     }
-    resp.pointer("/data/access_token")
-        .and_then(|v| v.as_str())
-        .map(String::from)
-        .ok_or_else(|| anyhow!("Login succeeded but no access_token in response"))
+
+    Err(anyhow!(
+        "Login failed after {} attempts due to transient API errors.",
+        MAX_RETRIES
+    ))
 }
 
 impl WeClient {
