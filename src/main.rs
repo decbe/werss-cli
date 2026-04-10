@@ -38,7 +38,7 @@ struct Cli {
         value_name = "URL",
         hide_env = true,
         help = "WeRSS API base URL. Env: WE_API_BASE",
-        help_heading = "API Connection",
+        help_heading = "API Connection"
     )]
     api_base: Option<String>,
 
@@ -47,7 +47,7 @@ struct Cli {
         env = "WE_API_USERNAME",
         hide_env = true,
         help = "WeRSS API username. Env: WE_API_USERNAME",
-        help_heading = "API Connection",
+        help_heading = "API Connection"
     )]
     username: Option<String>,
 
@@ -56,7 +56,7 @@ struct Cli {
         env = "WE_API_PASSWORD",
         hide_env = true,
         help = "WeRSS API password. Env: WE_API_PASSWORD",
-        help_heading = "API Connection",
+        help_heading = "API Connection"
     )]
     password: Option<String>,
 
@@ -66,7 +66,7 @@ struct Cli {
         value_name = "IDS",
         hide_env = true,
         help = "Comma-separated MP IDs, or \"all\". Env: WE_TARGET_MPS",
-        help_heading = "Sync",
+        help_heading = "Sync"
     )]
     mp: Option<String>,
 
@@ -76,7 +76,7 @@ struct Cli {
         value_name = "DIR",
         hide_env = true,
         help = "Output directory for articles (created if missing). Env: WE_OUTPUT_DIR",
-        help_heading = "Sync",
+        help_heading = "Sync"
     )]
     output: Option<String>,
 
@@ -86,7 +86,7 @@ struct Cli {
         value_name = "DIR",
         hide_env = true,
         help = "Also publish to <DIR>/published/YYYYMMDD/<slug>/. Env: WE_WORKSPACE_DIR",
-        help_heading = "Sync",
+        help_heading = "Sync"
     )]
     workspace: Option<String>,
 
@@ -96,7 +96,7 @@ struct Cli {
         value_name = "DATE",
         hide_env = true,
         help = "Only fetch articles published since DATE (YYYY-MM-DD). Env: WE_SINCE",
-        help_heading = "Sync",
+        help_heading = "Sync"
     )]
     since: Option<String>,
 
@@ -106,7 +106,7 @@ struct Cli {
         value_name = "DATE",
         hide_env = true,
         help = "Only fetch articles published until DATE (YYYY-MM-DD). Env: WE_UNTIL",
-        help_heading = "Sync",
+        help_heading = "Sync"
     )]
     until: Option<String>,
 
@@ -116,7 +116,7 @@ struct Cli {
         value_name = "N",
         hide_env = true,
         help = "Max articles to fetch per run (0 = no limit). Env: WE_LIMIT",
-        help_heading = "Sync",
+        help_heading = "Sync"
     )]
     limit: Option<u32>,
 
@@ -125,7 +125,7 @@ struct Cli {
         env = "WE_START_PAGE",
         hide_env = true,
         help = "Start page for MP sync. Env: WE_START_PAGE",
-        help_heading = "Sync",
+        help_heading = "Sync"
     )]
     start_page: Option<i64>,
 
@@ -134,16 +134,11 @@ struct Cli {
         env = "WE_END_PAGE",
         hide_env = true,
         help = "End page for MP sync. Env: WE_END_PAGE",
-        help_heading = "Sync",
+        help_heading = "Sync"
     )]
     end_page: Option<i64>,
 
-
-    #[arg(
-        long,
-        default_value = "werss.toml",
-        help_heading = "Config",
-    )]
+    #[arg(long, default_value = "werss.toml", help_heading = "Config")]
     /// TOML config file path (use --init-config to generate)
     config: String,
 
@@ -179,20 +174,29 @@ fn parse_date(s: &str) -> Option<i64> {
 
 fn resolve(cli: &Cli) -> Resolved {
     let cfg = config::Config::load_optional(Path::new(&cli.config));
-    let since_str = cli.since.as_deref().unwrap_or_else(|| cfg.sync.since.as_str());
-    let until_str = cli.until.as_deref().unwrap_or_else(|| cfg.sync.until.as_str());
+    let since_str = cli.since.as_deref().unwrap_or(cfg.sync.since.as_str());
+    let until_str = cli.until.as_deref().unwrap_or(cfg.sync.until.as_str());
     Resolved {
-        api_base: cli.api_base.clone()
-            .unwrap_or_else(|| cfg.api.base.clone()),
-        username: cli.username.clone()
+        api_base: cli.api_base.clone().unwrap_or_else(|| cfg.api.base.clone()),
+        username: cli
+            .username
+            .clone()
             .unwrap_or_else(|| cfg.api.username.clone()),
-        password: cli.password.clone()
+        password: cli
+            .password
+            .clone()
             .unwrap_or_else(|| cfg.api.password.clone()),
-        mp: cli.mp.clone()
+        mp: cli
+            .mp
+            .clone()
             .unwrap_or_else(|| cfg.sync.target_mps.to_comma_string()),
-        output: cli.output.clone()
+        output: cli
+            .output
+            .clone()
             .unwrap_or_else(|| cfg.sync.output_dir.clone()),
-        workspace: cli.workspace.clone()
+        workspace: cli
+            .workspace
+            .clone()
             .unwrap_or_else(|| cfg.sync.workspace_dir.clone()),
         max_failures: cfg.sync.max_failures,
         since_ts: parse_date(since_str),
@@ -209,18 +213,27 @@ fn preflight(r: &Resolved) -> Result<()> {
     }
     let out = Path::new(&r.output);
     if out.exists() && !out.is_dir() {
-        return Err(anyhow!("--output '{}' exists but is not a directory", r.output));
+        return Err(anyhow!(
+            "--output '{}' exists but is not a directory",
+            r.output
+        ));
     }
     if !r.workspace.is_empty() {
         let ws = Path::new(&r.workspace);
         if ws.exists() && !ws.is_dir() {
-            return Err(anyhow!("--workspace '{}' exists but is not a directory", r.workspace));
+            return Err(anyhow!(
+                "--workspace '{}' exists but is not a directory",
+                r.workspace
+            ));
         }
     }
     if out.exists() {
         let probe = out.join(".werss_write_test");
         if std::fs::write(&probe, b"").is_err() {
-            return Err(anyhow!("No write permission to output directory '{}'", r.output));
+            return Err(anyhow!(
+                "No write permission to output directory '{}'",
+                r.output
+            ));
         }
         let _ = std::fs::remove_file(&probe);
     }
@@ -230,16 +243,20 @@ fn preflight(r: &Resolved) -> Result<()> {
 #[tokio::main]
 async fn main() -> Result<()> {
     let _ = dotenvy::dotenv();
-    let _ = dotenvy::from_path(std::path::Path::new(
-        concat!(env!("CARGO_MANIFEST_DIR"), "/../werss/.env"),
-    ));
+    let _ = dotenvy::from_path(std::path::Path::new(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../werss/.env"
+    )));
     let cli = Cli::parse();
 
     if cli.init_config {
         let example = config::generate_example();
         let path = Path::new(&cli.config);
         if path.exists() {
-            return Err(anyhow!("{} already exists, not overwriting", path.display()));
+            return Err(anyhow!(
+                "{} already exists, not overwriting",
+                path.display()
+            ));
         }
         std::fs::write(path, &example)?;
         eprintln!("Created {}", path.display());
@@ -264,10 +281,14 @@ async fn main() -> Result<()> {
 
     let mps = resolve_mps(&c, &r.mp).await?;
     if mps.is_empty() {
-        return Err(anyhow!("No matching public accounts found for --mp '{}'", r.mp));
+        return Err(anyhow!(
+            "No matching public accounts found for --mp '{}'",
+            r.mp
+        ));
     }
 
-    let (mut fetched, mut skipped, mut failed, mut exhausted, mut ws_failed) = (0u32, 0u32, 0u32, 0u32, 0u32);
+    let (mut fetched, mut skipped, mut failed, mut exhausted, mut ws_failed) =
+        (0u32, 0u32, 0u32, 0u32, 0u32);
     let sem = Arc::new(tokio::sync::Semaphore::new(3));
 
     for mp in &mps {
@@ -304,11 +325,22 @@ async fn main() -> Result<()> {
         }
 
         let articles = c.list_articles(&mp.id).await?;
-        let articles: Vec<_> = articles.into_iter().filter(|a| {
-            if let Some(s) = r.since_ts { if a.publish_time < s { return false; } }
-            if let Some(u) = r.until_ts { if a.publish_time > u { return false; } }
-            true
-        }).collect();
+        let articles: Vec<_> = articles
+            .into_iter()
+            .filter(|a| {
+                if let Some(s) = r.since_ts {
+                    if a.publish_time < s {
+                        return false;
+                    }
+                }
+                if let Some(u) = r.until_ts {
+                    if a.publish_time > u {
+                        return false;
+                    }
+                }
+                true
+            })
+            .collect();
         eprintln!("  {} articles (filtered by time range)", articles.len());
 
         if articles.is_empty() {
@@ -349,10 +381,16 @@ async fn main() -> Result<()> {
                 Ok(dir) => tasks.push((art.clone(), dir)),
                 Err(e) => {
                     failed += 1;
-                    if let Err(se) = store.record(&art.id, &art.title, art.publish_time, "failed", "") {
+                    if let Err(se) =
+                        store.record(&art.id, &art.title, art.publish_time, "failed", "")
+                    {
                         eprintln!("  [WARN] Failed to record state: {}", se);
                     }
-                    eprintln!("  FAIL dir: {} — {}", art.title.chars().take(40).collect::<String>(), e);
+                    eprintln!(
+                        "  FAIL dir: {} — {}",
+                        art.title.chars().take(40).collect::<String>(),
+                        e
+                    );
                 }
             }
         }
@@ -386,14 +424,18 @@ async fn main() -> Result<()> {
                     if !ws_ok {
                         ws_failed += 1;
                     }
-                    if let Err(e) = store.record(&art.id, &art.title, art.publish_time, "success", &rel_path) {
+                    if let Err(e) =
+                        store.record(&art.id, &art.title, art.publish_time, "success", &rel_path)
+                    {
                         eprintln!("  [WARN] Failed to record state: {}", e);
                     }
                     eprintln!("  OK: {}", short);
                 }
                 Ok(Err(e)) => {
                     failed += 1;
-                    if let Err(se) = store.record(&art.id, &art.title, art.publish_time, "failed", "") {
+                    if let Err(se) =
+                        store.record(&art.id, &art.title, art.publish_time, "failed", "")
+                    {
                         eprintln!("  [WARN] Failed to record state: {}", se);
                     }
                     eprintln!("  FAIL: {} — {}", short, e);
@@ -401,7 +443,9 @@ async fn main() -> Result<()> {
                 }
                 Err(e) => {
                     failed += 1;
-                    if let Err(se) = store.record(&art.id, &art.title, art.publish_time, "failed", "") {
+                    if let Err(se) =
+                        store.record(&art.id, &art.title, art.publish_time, "failed", "")
+                    {
                         eprintln!("  [WARN] Failed to record state: {}", se);
                     }
                     eprintln!("  FAIL: {} — task error: {}", short, e);
@@ -419,7 +463,10 @@ async fn main() -> Result<()> {
         eprintln!("Note: re-run to retry failed articles (they are tracked in state.jsonl)");
     }
     if exhausted > 0 {
-        eprintln!("Note: {} articles skipped after {} failures (config: max_failures)", exhausted, r.max_failures);
+        eprintln!(
+            "Note: {} articles skipped after {} failures (config: max_failures)",
+            exhausted, r.max_failures
+        );
     }
     if CANCELLED.load(Ordering::Relaxed) {
         std::process::exit(0);
@@ -516,17 +563,30 @@ async fn fetch_and_write(
     );
     let slug = convert::slugify(&detail.title);
     let path = dir.join(format!("{}.md", slug));
-    std::fs::write(&path, &md)
-        .map_err(|e| anyhow!("Failed to write {}: {}", path.display(), e))?;
+    std::fs::write(&path, &md).map_err(|e| anyhow!("Failed to write {}: {}", path.display(), e))?;
 
     let rel = path
         .strip_prefix(mp_dir)
-        .map_err(|_| anyhow!("Path mismatch: {} not under {}", path.display(), mp_dir.display()))?
+        .map_err(|_| {
+            anyhow!(
+                "Path mismatch: {} not under {}",
+                path.display(),
+                mp_dir.display()
+            )
+        })?
         .to_string_lossy()
         .to_string();
 
     let ws_ok = if !workspace.is_empty() {
-        publish_to_workspace(c, &detail.pic_url, detail.publish_time, &slug, &md, workspace).await
+        publish_to_workspace(
+            c,
+            &detail.pic_url,
+            detail.publish_time,
+            &slug,
+            &md,
+            workspace,
+        )
+        .await
     } else {
         true
     };
@@ -552,13 +612,10 @@ async fn publish_to_workspace(
         return false;
     }
     if !pic_url.is_empty() {
-        match c.download_image(pic_url).await {
-            Ok(bytes) => {
-                let ext = infer_image_ext(pic_url);
-                let img_path = td.join("imgs").join(format!("cover.{}", ext));
-                let _ = std::fs::write(&img_path, &bytes);
-            }
-            Err(_) => {}
+        if let Ok(bytes) = c.download_image(pic_url).await {
+            let ext = infer_image_ext(pic_url);
+            let img_path = td.join("imgs").join(format!("cover.{}", ext));
+            let _ = std::fs::write(&img_path, &bytes);
         }
     }
     let md_path = td.join(format!("{}.md", slug));
@@ -585,7 +642,11 @@ fn infer_image_ext(url: &str) -> &'static str {
 }
 
 fn clean_empty_dir(dir: &Path) {
-    if dir.is_dir() && std::fs::read_dir(dir).map(|mut r| r.next().is_none()).unwrap_or(false) {
+    if dir.is_dir()
+        && std::fs::read_dir(dir)
+            .map(|mut r| r.next().is_none())
+            .unwrap_or(false)
+    {
         let _ = std::fs::remove_dir(dir);
     }
 }

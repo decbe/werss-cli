@@ -74,7 +74,9 @@ impl WeClient {
     pub async fn new(base: &str, user: &str, pass: &str) -> Result<Self> {
         let base = base.trim_end_matches('/');
         if base.is_empty() {
-            return Err(anyhow!("API base URL is empty. Set --api-base or WE_API_BASE"));
+            return Err(anyhow!(
+                "API base URL is empty. Set --api-base or WE_API_BASE"
+            ));
         }
         if !base.starts_with("http://") && !base.starts_with("https://") {
             return Err(anyhow!(
@@ -249,8 +251,7 @@ impl WeClient {
         if d["code"].as_i64() != Some(0) {
             return Ok(None);
         }
-        Ok(d
-            .pointer("/data/task_id")
+        Ok(d.pointer("/data/task_id")
             .and_then(|v| v.as_str())
             .map(String::from))
     }

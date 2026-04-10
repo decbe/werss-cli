@@ -7,22 +7,12 @@ pub struct Config {
     pub sync: SyncConfig,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Default, Clone, Deserialize)]
 #[serde(default)]
 pub struct ApiConfig {
     pub base: String,
     pub username: String,
     pub password: String,
-}
-
-impl Default for ApiConfig {
-    fn default() -> Self {
-        Self {
-            base: String::new(),
-            username: String::new(),
-            password: String::new(),
-        }
-    }
 }
 
 #[derive(Debug, Clone, Deserialize)]

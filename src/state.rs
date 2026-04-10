@@ -72,9 +72,20 @@ impl StateStore {
             .unwrap_or(false)
     }
 
-    pub fn record(&mut self, id: &str, title: &str, ts: i64, status: &str, file_path: &str) -> Result<()> {
+    pub fn record(
+        &mut self,
+        id: &str,
+        title: &str,
+        ts: i64,
+        status: &str,
+        file_path: &str,
+    ) -> Result<()> {
         let current_count = self.fetched.get(id).map(|r| r.failed_count).unwrap_or(0);
-        let new_count = if status == "failed" { current_count + 1 } else { 0 };
+        let new_count = if status == "failed" {
+            current_count + 1
+        } else {
+            0
+        };
         self.fetched.insert(
             id.to_string(),
             Rec {
@@ -107,24 +118,21 @@ impl StateStore {
 
     fn compact(&self) {
         let tmp = self.state_file.with_extension("jsonl.tmp");
-        match std::fs::File::create(&tmp) {
-            Ok(mut f) => {
-                for (id, rec) in &self.fetched {
-                    let entry = serde_json::json!({
-                        "article_id": id,
-                        "title": rec.title,
-                        "status": rec.status,
-                        "file_path": rec.file_path,
-                        "failed_count": rec.failed_count,
-                    });
-                    let _ = writeln!(f, "{}", entry);
-                }
-                drop(f);
-                if std::fs::rename(&tmp, &self.state_file).is_err() {
-                    let _ = std::fs::remove_file(&tmp);
-                }
+        if let Ok(mut f) = std::fs::File::create(&tmp) {
+            for (id, rec) in &self.fetched {
+                let entry = serde_json::json!({
+                    "article_id": id,
+                    "title": rec.title,
+                    "status": rec.status,
+                    "file_path": rec.file_path,
+                    "failed_count": rec.failed_count,
+                });
+                let _ = writeln!(f, "{}", entry);
             }
-            Err(_) => {}
+            drop(f);
+            if std::fs::rename(&tmp, &self.state_file).is_err() {
+                let _ = std::fs::remove_file(&tmp);
+            }
         }
     }
 

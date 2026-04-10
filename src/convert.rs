@@ -62,8 +62,8 @@ pub fn dedent_code_blocks(md: &str) -> String {
     let mut pos = 0;
     while pos < md.len() {
         let rest = &md[pos..];
-        if rest.starts_with("```") {
-            let fence_end = rest[3..].find('\n').map(|i| i + 3).unwrap_or(rest.len());
+        if let Some(stripped) = rest.strip_prefix("```") {
+            let fence_end = stripped.find('\n').map(|i| i + 3).unwrap_or(rest.len());
             let fence_line = &rest[..fence_end];
             let content_start = pos + fence_end + 1;
             let close = md[content_start..].find("\n```");
@@ -158,6 +158,7 @@ pub fn clean_tail(text: &str) -> String {
     t.trim().to_string()
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn article_to_md(
     title: &str,
     author: &str,
