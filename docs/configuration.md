@@ -8,6 +8,40 @@ CLI flags > Environment variables > werss.toml > .env > Built-in defaults
 
 Higher-priority sources override lower ones. All settings are optional — you only need to provide what differs from the defaults.
 
+## Authentication
+
+werss-cli uses a secure token management system for authentication:
+
+### First Run
+On the first run, you must provide credentials (username and password). These can be provided via:
+- CLI flags: `werss-cli --username admin --password secret`
+- Environment variables: `WE_API_USERNAME=admin WE_API_PASSWORD=secret`
+- Config file: set `api.username` and `api.password` in `werss.toml`
+- Interactive prompt: if no credentials are found, werss-cli will prompt for them
+
+### Subsequent Runs
+After the first successful authentication:
+1. werss-cli automatically loads the saved token from system keyring
+2. The token is reused for all API requests
+3. No credentials need to be provided (though you can override them if desired)
+
+### Token Storage
+- **Linux**: Stored in GNOME Secret Service or KDE Wallet
+- **macOS**: Stored in Keychain
+- **Windows**: Stored in Credential Manager
+
+This is more secure than file-based storage as the system handles encryption.
+
+### Token Expiry and Refresh
+- If a token expires, werss-cli automatically attempts to refresh it
+- If refresh fails, the tool falls back to re-authentication using your credentials
+- This ensures uninterrupted operation even when tokens expire
+
+### Configuration Priority for Auth
+```
+CLI flags > Environment variables > werss.toml > .env > System keyring > Interactive prompt
+```
+
 ## CLI options
 
 ### API Connection

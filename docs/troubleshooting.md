@@ -7,6 +7,10 @@
 | `Cannot connect to API at <url>` | API server is not running or URL is wrong | Check the server is running and verify `api.base` in config |
 | `API returned non-JSON (HTTP ...)` | URL points to a non-API endpoint | Confirm the API base URL is correct (e.g., `http://host:8001`) |
 | `Login failed (code=x)` | Wrong username or password | Check `api.username` and `api.password` |
+| `No credentials provided and none found in config` | Credentials missing from all sources | Provide via CLI, environment, config file, or respond to the interactive prompt |
+| `Failed to save token to keyring` | Keyring service unavailable or access denied | Ensure your system keyring service is running (GNOME Keyring on Linux, Keychain on macOS, Credential Manager on Windows) |
+| `Failed to load token from keyring` | Keyring service unavailable or corruption | Try re-authenticating with `--username` and `--password` to resave the token |
+| `Token refresh failed, re-authenticating` | Token expired and refresh was unsuccessful | The tool will automatically re-authenticate. This is normal behavior. |
 | `No matching public accounts found` | MP IDs don't exist on the server | Use `target_mps = "all"` to discover available IDs |
 | `No write permission to output directory` | Output directory is not writable | Change permissions with `chmod` or set a different `output_dir` |
 | `Refresh task timeout` | WeChat content fetch took longer than 3 minutes | Re-run to retry. The article may become available later |
@@ -51,9 +55,40 @@ State files are automatically compacted when the line count exceeds 2× the numb
 
 ### Token expiry
 
-werss-cli automatically re-authenticates on 401 responses. No configuration or manual intervention needed.
+werss-cli automatically manages token expiry:
+1. Checks token validity before each run (with 5-minute buffer)
+2. If token is expired, attempts automatic refresh (if `refresh_token` is available)
+3. If refresh fails, falls back to re-authentication using stored credentials
+4. New token is automatically saved to system keyring
+
+No manual intervention needed. The process is transparent to you.
+
+### Credentials not saved between runs
+
+If werss-cli prompts for credentials every run:
+1. Check your system keyring service is running:
+   - **Linux**: `systemctl status gnome-keyring-daemon` or `systemctl status kwalletd`
+   - **macOS**: Keychain is typically always running
+   - **Windows**: Credential Manager should be available
+2. Try explicitly providing credentials to force resave:
+   ```bash
+   werss-cli --username admin --password secret
+   ```
+3. The token should now be saved and available on next run
 
 ## FAQ
+
+**Q: Do I need to provide credentials every time?**
+
+No. On the first run, you provide credentials once. They are used to obtain a token, which is then saved to your system keyring. On subsequent runs, werss-cli loads the token automatically and doesn't need credentials.
+
+**Q: What if my keyring is not available?**
+
+werss-cli will prompt you for credentials whenever the keyring is unavailable. You can also explicitly provide credentials via CLI flags or environment variables, which will always work.
+
+**Q: Can I use werss-cli without a keyring system?**
+
+The keyring integration is automatic and transparent. If your system doesn't have a keyring, werss-cli will fall back to prompting for credentials, but will still function normally.
 
 **Q: Can I run werss-cli without a WeRSS server?**
 

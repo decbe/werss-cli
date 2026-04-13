@@ -1,6 +1,6 @@
 [package]
 name = "werss-cli"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 
 [dependencies]
@@ -15,6 +15,7 @@ dotenvy = "0.15"
 anyhow = "1"
 regex = "1"
 toml = "0.8"
+keyring = "3"
 
 [profile.release]
 opt-level = "z"

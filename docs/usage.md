@@ -16,11 +16,31 @@
 
 3. **Edit** `werss.toml` — set your API base URL, username, and password.
 
-4. **Run**:
+4. **Run** (first time requires credentials):
 
    ```bash
    ./target/release/werss-cli
    ```
+   
+   On the first run:
+   - werss-cli reads credentials from `werss.toml`, environment variables, or CLI flags
+   - If no credentials are found, it will prompt you to enter them interactively
+   - After successful authentication, the token is automatically saved to your system keyring
+   - The tool then proceeds to fetch articles as normal
+
+## Subsequent runs
+
+Simply run the tool again:
+
+```bash
+./target/release/werss-cli
+```
+
+On subsequent runs:
+- werss-cli automatically loads the saved token from your system keyring
+- No credentials are needed
+- The token is reused for all API requests
+- If the token expires, werss-cli automatically refreshes it or prompts for re-authentication if needed
 
 ## Common workflows
 
@@ -104,15 +124,16 @@ werss-cli --config /etc/werss.toml
 ## What happens when you run werss-cli
 
 1. **Config resolution** — merges CLI flags, env vars, werss.toml, and defaults
-2. **Preflight checks** — validates MP list, output directory write permissions
-3. **Login** — authenticates with the WeRSS API, obtains a Bearer token
-4. **MP resolution** — `"all"` fetches all accounts; comma-separated IDs are filtered
-5. **Per-MP processing**:
+2. **Authentication** — checks keyring for valid token; prompts for credentials if needed
+3. **Preflight checks** — validates MP list, output directory write permissions
+4. **Token management** — saves token to keyring for next run
+5. **MP resolution** — `"all"` fetches all accounts; comma-separated IDs are filtered
+6. **Per-MP processing**:
    - Triggers MP sync from WeChat (`update_mp`, retried 3 times)
    - Lists articles with date filtering
    - Checks state: skips fetched, identifies exhausted, queues pending
    - Fetches pending articles in parallel (max 3 concurrent)
-6. **Output** — writes Markdown files and updates state
+7. **Output** — writes Markdown files and updates state
 
 ### Summary line
 

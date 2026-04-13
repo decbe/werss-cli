@@ -4,6 +4,28 @@ All notable changes to werss-cli will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added
+
+- Complete authentication token management with system keyring storage
+- Token refresh mechanism with automatic expiration detection (5-minute buffer)
+- Interactive password input when credentials unavailable
+- Graceful fallback authentication flow: saved token → refresh → credentials → interactive input
+- Cross-platform support for secure token storage (Linux Secret Service, macOS Keychain, Windows Credential Manager)
+
+### Changed
+
+- Authentication system refactored to use `keyring` crate for secure token storage
+- Login process now automatically saves tokens for reuse on subsequent runs
+- Bearer token handling improved with optional refresh token support
+- API compatibility enhanced to handle optional `refresh_token` field in login responses
+
+### Fixed
+
+- Handle APIs that don't provide `refresh_token` field in login response
+- Proper error handling when refresh token operations fail
+
 ## [0.1.0] - 2026-04-07
 
 ### Added

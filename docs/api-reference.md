@@ -24,12 +24,22 @@ username=admin&password=secret
   "code": 0,
   "message": "success",
   "data": {
-    "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+    "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "expires_in": 3600,
+    "refresh_token": "optional-refresh-token"
   }
 }
 ```
 
-All subsequent requests use `Authorization: Bearer <access_token>`. werss-cli automatically re-authenticates on 401 responses.
+**Fields:**
+- `access_token` (required): Bearer token for subsequent API requests
+- `expires_in` (optional): Token lifetime in seconds
+- `refresh_token` (optional): Refresh token for token renewal (may not be present in all API implementations)
+
+All subsequent requests use `Authorization: Bearer <access_token>`. werss-cli automatically:
+- Validates token expiry before each use (5-minute buffer)
+- Attempts token refresh on 401 responses (if `refresh_token` is provided)
+- Falls back to re-authentication with stored credentials if refresh fails
 
 ## Public accounts
 

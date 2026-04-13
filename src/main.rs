@@ -4,6 +4,7 @@ use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
+mod auth;
 mod client;
 mod config;
 mod convert;
@@ -240,6 +241,87 @@ fn preflight(r: &Resolved) -> Result<()> {
     Ok(())
 }
 
+/// Prompt user to input password interactively
+fn prompt_password(username: &str) -> Result<String> {
+    use std::io::{self, Write};
+
+    eprint!("Enter password for user '{}': ", username);
+    io::stderr().flush()?;
+
+    let stdin = io::stdin();
+    let mut password = String::new();
+    stdin.read_line(&mut password)?;
+    Ok(password.trim().to_string())
+}
+
+/// Initialize authentication: try keyring → try refresh → try config credentials → interactive
+async fn initialize_client(
+    api_base: &str,
+    username: &str,
+    password: &str,
+) -> Result<client::WeClient> {
+    // Try to load and use existing token
+    if let Ok(Some(token_data)) = auth::TokenData::load() {
+        if token_data.is_valid() {
+            eprintln!("[INFO] Using saved token from keyring");
+            // Create client with existing token
+            let client =
+                client::WeClient::with_token(api_base, username, password, token_data).await?;
+            return Ok(client);
+        } else {
+            eprintln!("[INFO] Saved token expired, attempting refresh...");
+            // Try to refresh the token
+            let client =
+                client::WeClient::with_token(api_base, username, password, token_data).await?;
+            if client.refresh_token().await.is_ok() {
+                if let Ok(new_token) = client.get_token() {
+                    new_token.save()?;
+                    eprintln!("[INFO] Token refreshed successfully");
+                    return Ok(client);
+                }
+            }
+            eprintln!("[WARN] Token refresh failed");
+        }
+    }
+
+    // Token not available or refresh failed, try credentials
+    eprintln!("[INFO] Attempting login with provided credentials...");
+    match client::WeClient::new(api_base, username, password).await {
+        Ok(client) => {
+            if let Ok(token_data) = client.get_token() {
+                let _ = token_data.save();
+            }
+            eprintln!("[INFO] Login successful, token saved to keyring");
+            Ok(client)
+        }
+        Err(e) => {
+            eprintln!("[WARN] Login failed: {}", e);
+            // Check if we have credentials to retry
+            if !username.is_empty() && !password.is_empty() {
+                eprintln!("[ERROR] Could not authenticate with provided credentials");
+                return Err(e);
+            }
+            // Prompt for credentials interactively
+            eprintln!("[INFO] Please provide credentials to authenticate");
+            let interactive_user = username.to_string();
+            let interactive_pass = prompt_password(&interactive_user)?;
+            match client::WeClient::new(api_base, &interactive_user, &interactive_pass).await {
+                Ok(client) => {
+                    if let Ok(token_data) = client.get_token() {
+                        let _ = token_data.save();
+                    }
+                    eprintln!("[INFO] Login successful, token saved to keyring");
+                    Ok(client)
+                }
+                Err(e) => {
+                    eprintln!("[ERROR] Authentication failed: {}", e);
+                    Err(e)
+                }
+            }
+        }
+    }
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     let _ = dotenvy::dotenv();
@@ -276,8 +358,8 @@ async fn main() -> Result<()> {
         eprintln!("\nCaught Ctrl+C, finishing current article...");
     });
 
-    let c = Arc::new(client::WeClient::new(&r.api_base, &r.username, &r.password).await?);
-    eprintln!("Login successful!");
+    let c = Arc::new(initialize_client(&r.api_base, &r.username, &r.password).await?);
+    eprintln!("Ready to sync articles");
 
     let mps = resolve_mps(&c, &r.mp).await?;
     if mps.is_empty() {

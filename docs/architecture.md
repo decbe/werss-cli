@@ -7,6 +7,7 @@ src/
 ├── main.rs     # CLI parsing, orchestration, config resolution, graceful shutdown
 ├── config.rs   # Config: TOML parsing, TomlVecOrString type, defaults, example generation
 ├── client.rs   # WeClient: HTTP client, auth, API methods, token refresh
+├── auth.rs     # Token management: keyring storage, validation, refresh
 ├── convert.rs  # HTML-to-Markdown conversion, slug generation, frontmatter, cleanup
 └── state.rs    # StateStore: JSONL state file, record/lookup/compact logic
 ```
@@ -26,11 +27,21 @@ Entry point. Responsibilities:
 
 HTTP client for the WeRSS API. Key type: `WeClient`.
 
-- Manages authentication with Bearer token stored in `Mutex<String>`
-- Auto-refreshes token on 401 responses (re-login transparently)
+- Manages authentication with Bearer token stored in `TokenData`
+- Auto-refreshes token on 401 responses (attempts refresh, falls back to re-login)
 - Methods: `list_mps`, `update_mp`, `list_articles`, `refresh_article`, `poll_task`, `get_article_detail`, `download_image`
 - All API responses are JSON, validated before returning
 - Connection errors, timeouts, and non-JSON responses are handled with descriptive errors
+
+### auth.rs
+
+Token management and storage. Key type: `TokenData`.
+
+- Securely stores tokens in system keyring (Linux Secret Service, macOS Keychain, Windows Credential Manager)
+- Parses API responses to extract `access_token`, optional `refresh_token`, and `expires_in`
+- Validates token expiry with 5-minute buffer to prevent edge cases
+- Methods: `from_response()` (parse API response), `is_valid()` (expiry check), `save()` (to keyring), `load()` (from keyring), `delete()` (from keyring)
+- Supports automatic token refresh before expiry to maintain session continuity
 
 ### config.rs
 
@@ -97,10 +108,31 @@ werss-cli
 
 ## Authentication and token management
 
-1. On startup, `WeClient::new()` calls `POST /api/v1/wx/auth/login` with form-encoded credentials
-2. The returned `access_token` is stored in `Mutex<String>`
-3. All subsequent API requests include `Authorization: Bearer <token>`
-4. On 401 responses, `WeClient::req()` automatically re-logs in and retries the request with the new token
+### First Run
+1. Check if valid token exists in system keyring
+2. If not found or expired, attempt to load credentials from:
+   - CLI flags (`--username`, `--password`)
+   - Environment variables (`WE_API_USERNAME`, `WE_API_PASSWORD`)
+   - Config file (`werss.toml`)
+   - Interactive prompt (if no credentials provided)
+3. Call `POST /api/v1/wx/auth/login` with credentials
+4. Extract `access_token` from response (may include optional `refresh_token`)
+5. Store token in system keyring with expiry time
+6. All subsequent requests use `Authorization: Bearer <token>`
+
+### Subsequent Runs
+1. Check keyring for existing token
+2. If found and still valid (with 5-minute buffer), use it immediately
+3. If expired, attempt automatic refresh:
+   - If `refresh_token` exists and is valid, call token refresh endpoint
+   - If refresh fails or no `refresh_token`, fall back to re-authentication with stored/provided credentials
+4. Token is automatically saved to keyring for next run
+
+### Token Expiry Handling
+- 401 responses trigger automatic token refresh (if `refresh_token` exists)
+- Failed refresh falls back to re-authentication with credentials
+- Tokens are validated before each use with 5-minute buffer
+- System keyring handles cross-platform secure storage (Linux, macOS, Windows)
 
 ## Retry and resilience
 
@@ -125,6 +157,7 @@ werss-cli
 | `anyhow` | Error handling with context |
 | `regex` | HTML header stripping patterns |
 | `toml` | Config file parsing |
+| `keyring` | Cross-platform secure token storage (Linux/macOS/Windows) |
 
 ### Build note
 

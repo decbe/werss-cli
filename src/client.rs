@@ -1,12 +1,15 @@
+use crate::auth;
 use anyhow::{anyhow, Result};
 use std::time::Duration;
 
 pub struct WeClient {
     base: String,
     http: reqwest::Client,
+    #[allow(dead_code)]
     user: String,
+    #[allow(dead_code)]
     pass: String,
-    token: std::sync::Mutex<String>,
+    token: std::sync::Mutex<auth::TokenData>,
 }
 
 #[derive(Debug, Clone)]
@@ -35,7 +38,12 @@ pub struct ArticleDetail {
     pub publish_time: i64,
 }
 
-async fn login(http: &reqwest::Client, base: &str, user: &str, pass: &str) -> Result<String> {
+async fn login(
+    http: &reqwest::Client,
+    base: &str,
+    user: &str,
+    pass: &str,
+) -> Result<auth::TokenData> {
     const MAX_RETRIES: u32 = 3;
     for attempt in 1..=MAX_RETRIES {
         let resp_result = http
@@ -94,11 +102,7 @@ async fn login(http: &reqwest::Client, base: &str, user: &str, pass: &str) -> Re
             ));
         }
 
-        return resp
-            .pointer("/data/access_token")
-            .and_then(|v| v.as_str())
-            .map(String::from)
-            .ok_or_else(|| anyhow!("Login succeeded but no access_token in response"));
+        return auth::TokenData::from_response(&resp);
     }
 
     Err(anyhow!(
@@ -134,14 +138,128 @@ impl WeClient {
         })
     }
 
+    /// Create a client with an existing token (for token reuse)
+    pub async fn with_token(
+        base: &str,
+        user: &str,
+        pass: &str,
+        token: auth::TokenData,
+    ) -> Result<Self> {
+        let base = base.trim_end_matches('/');
+        if base.is_empty() {
+            return Err(anyhow!(
+                "API base URL is empty. Set --api-base or WE_API_BASE"
+            ));
+        }
+        if !base.starts_with("http://") && !base.starts_with("https://") {
+            return Err(anyhow!(
+                "API base URL must start with http:// or https://, got: {}",
+                base
+            ));
+        }
+        let http = reqwest::Client::builder()
+            .timeout(Duration::from_secs(30))
+            .build()?;
+        Ok(Self {
+            base: base.to_string(),
+            http,
+            user: user.into(),
+            pass: pass.into(),
+            token: std::sync::Mutex::new(token),
+        })
+    }
+
+    /// Get a copy of the current token data
+    pub fn get_token(&self) -> Result<auth::TokenData> {
+        self.token
+            .lock()
+            .map(|guard| (*guard).clone())
+            .map_err(|_| anyhow!("Failed to lock token"))
+    }
+
+    /// Refresh the access token using refresh_token
+    pub async fn refresh_token(&self) -> Result<()> {
+        let refresh_token = self.token.lock().unwrap().refresh_token.clone();
+
+        // If no refresh_token available, cannot refresh
+        if refresh_token.is_empty() {
+            return Err(anyhow!("No refresh_token available for refresh operation"));
+        }
+
+        const MAX_RETRIES: u32 = 3;
+        for attempt in 1..=MAX_RETRIES {
+            let resp_result = self
+                .http
+                .post(format!("{}/api/v1/wx/auth/refresh", self.base))
+                .form(&[("refresh_token", refresh_token.as_str())])
+                .send()
+                .await;
+
+            let resp = match resp_result {
+                Ok(resp) => resp,
+                Err(e) => {
+                    if attempt < MAX_RETRIES && (e.is_connect() || e.is_timeout()) {
+                        eprintln!(
+                            "[WARN] Token refresh attempt {}/{} failed: {}. Retrying...",
+                            attempt, MAX_RETRIES, e
+                        );
+                        tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+                        continue;
+                    }
+                    return Err(anyhow!("Token refresh request failed: {}", e));
+                }
+            };
+
+            let status = resp.status();
+            let body = resp.text().await?;
+            let json: Result<serde_json::Value> = serde_json::from_str(&body).map_err(|_| {
+                anyhow!(
+                    "Refresh API returned non-JSON (HTTP {}): {}...",
+                    status,
+                    body.chars().take(200).collect::<String>()
+                )
+            });
+
+            let resp = match json {
+                Ok(value) => value,
+                Err(_e) if attempt < MAX_RETRIES && status.is_server_error() => {
+                    eprintln!(
+                        "[WARN] Refresh returned HTTP {} with invalid body. Retrying...",
+                        status
+                    );
+                    tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+                    continue;
+                }
+                Err(e) => return Err(e),
+            };
+
+            if resp["code"].as_i64() != Some(0) {
+                return Err(anyhow!(
+                    "Token refresh failed (code={}): {}",
+                    resp["code"],
+                    resp["message"].as_str().unwrap_or("unknown")
+                ));
+            }
+
+            let new_token = auth::TokenData::from_response(&resp)?;
+            *self.token.lock().unwrap() = new_token;
+            return Ok(());
+        }
+
+        Err(anyhow!(
+            "Token refresh failed after {} attempts due to transient API errors.",
+            MAX_RETRIES
+        ))
+    }
+
     async fn req(&self, method: &str, path: &str, retry: bool) -> Result<serde_json::Value> {
-        let token = self.token.lock().unwrap().clone();
+        let access_token = self.token.lock().unwrap().access_token.clone();
         let url = format!("{}{}", self.base, path);
         let b = match method {
             "POST" => self.http.post(&url),
             _ => self.http.get(&url),
         };
-        let resp = b.bearer_auth(&token).send().await.map_err(|e| {
+        let resp = b.bearer_auth(&access_token).send().await.map_err(|e| {
             if e.is_connect() {
                 anyhow!("Connection lost to {}", self.base)
             } else if e.is_timeout() {
@@ -151,13 +269,13 @@ impl WeClient {
             }
         })?;
         if resp.status() == 401 && retry {
-            let t = login(&self.http, &self.base, &self.user, &self.pass).await?;
-            *self.token.lock().unwrap() = t.clone();
+            self.refresh_token().await?;
+            let access_token = self.token.lock().unwrap().access_token.clone();
             let b = match method {
                 "POST" => self.http.post(&url),
                 _ => self.http.get(&url),
             };
-            let resp = b.bearer_auth(&t).send().await?;
+            let resp = b.bearer_auth(&access_token).send().await?;
             let status = resp.status();
             let body = resp.text().await?;
             return serde_json::from_str(&body).map_err(|_| {
