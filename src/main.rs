@@ -571,6 +571,7 @@ async fn fetch_and_write(
         &detail.description,
         detail.publish_time,
         &html,
+        download_images,
     );
     let slug = convert::slugify(&detail.title);
     let path = dir.join(format!("{}.md", slug));

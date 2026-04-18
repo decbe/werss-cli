@@ -104,6 +104,14 @@ pub fn dedent_code_blocks(md: &str) -> String {
 }
 
 pub fn convert_html(html: &str) -> ConversionResult {
+    convert_html_internal(html, false)
+}
+
+pub fn convert_html_for_download(html: &str) -> ConversionResult {
+    convert_html_internal(html, true)
+}
+
+fn convert_html_internal(html: &str, localize_image_refs: bool) -> ConversionResult {
     // 提取 HTML 中所有 img src 的外部 URL
     let img_urls: Vec<(String, String)> = extract_img_srcs(html);
 
@@ -114,10 +122,12 @@ pub fn convert_html(html: &str) -> ConversionResult {
 
     let mut images = Vec::new();
     for (i, (url, ext)) in img_urls.iter().enumerate() {
-        let filename = format!("{}.{}", i, ext);
-        let old_ref = format!("]({})", url);
-        let new_ref = format!("](imgs/{})", filename);
-        markdown = markdown.replace(&old_ref, &new_ref);
+        if localize_image_refs {
+            let filename = format!("{}.{}", i, ext);
+            let old_ref = format!("]({})", url);
+            let new_ref = format!("](imgs/{})", filename);
+            markdown = markdown.replace(&old_ref, &new_ref);
+        }
         images.push(ExtractedImage {
             index: i,
             format: ext.clone(),
@@ -236,6 +246,7 @@ pub fn article_to_md(
     description: &str,
     ts: i64,
     html: &str,
+    download_images: bool,
 ) -> (String, Vec<ExtractedImage>) {
     let q = |s: &str| -> String {
         let escaped = s.replace('\\', "\\\\").replace('"', "\\\"");
@@ -265,8 +276,39 @@ pub fn article_to_md(
     let (body, extracted_images) = if html.is_empty() {
         (String::new(), Vec::new())
     } else {
-        let conv = convert_html(html);
+        let conv = if download_images {
+            convert_html_for_download(html)
+        } else {
+            convert_html(html)
+        };
         (clean_tail(&conv.markdown), conv.images)
     };
     (format!("{}\n{}\n", fm.join("\n"), body), extracted_images)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn convert_html_keeps_remote_image_urls_by_default() {
+        let html = r#"<p>Hello</p><p><img src="https://example.com/demo.png"></p>"#;
+
+        let result = convert_html(html);
+
+        assert!(result.markdown.contains("https://example.com/demo.png"));
+        assert!(!result.markdown.contains("imgs/0.png"));
+        assert_eq!(result.images.len(), 1);
+    }
+
+    #[test]
+    fn convert_html_rewrites_image_urls_when_localized() {
+        let html = r#"<p>Hello</p><p><img src="https://example.com/demo.png"></p>"#;
+
+        let result = convert_html_for_download(html);
+
+        assert!(result.markdown.contains("imgs/0.png"));
+        assert!(!result.markdown.contains("https://example.com/demo.png"));
+        assert_eq!(result.images.len(), 1);
+    }
 }

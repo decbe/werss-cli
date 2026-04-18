@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-04-18
+
+### Fixed
+
+- Preserve remote image URLs in generated Markdown unless image downloading is explicitly enabled with the CLI flag
+- Added regression tests to verify image-link behavior for both default and localized modes
+
 ### Added
 
 - Complete authentication token management with system keyring storage

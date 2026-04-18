@@ -3,7 +3,7 @@
 ## Build & run
 
 ```bash
-cargo build --release          # binary at target/release/werss-cli
+cargo build --release          # release artifacts remain under target/, binary at target/release/werss-cli
 cargo run -- --help            # dev run
 ```
 
