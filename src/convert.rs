@@ -141,12 +141,14 @@ fn convert_html_internal(html: &str, localize_image_refs: bool) -> ConversionRes
 
 /// 从 HTML 中提取所有 <img src="..."> 的 URL 和扩展名
 fn extract_img_srcs(html: &str) -> Vec<(String, String)> {
-    static RE_IMG: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
-        regex::Regex::new(r#"<img[^>]+src=["']([^"']+)["']"#).unwrap()
-    });
+    static RE_IMG: std::sync::LazyLock<regex::Regex> =
+        std::sync::LazyLock::new(|| regex::Regex::new(r#"<img[^>]+src=["']([^"']+)["']"#).unwrap());
     let mut results = Vec::new();
     for cap in RE_IMG.captures_iter(html) {
-        let url = cap.get(1).map(|m| m.as_str().to_string()).unwrap_or_default();
+        let url = cap
+            .get(1)
+            .map(|m| m.as_str().to_string())
+            .unwrap_or_default();
         if url.is_empty() {
             continue;
         }

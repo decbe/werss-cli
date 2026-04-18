@@ -29,43 +29,141 @@ config precedence: cli flags > env vars > werss.toml
 output: <output>/<mp_id>/YYYYMMDD/01/<slug>.md"
 )]
 struct Cli {
-    #[arg(short = 'a', long, env = "WE_API_BASE", value_name = "URL", hide_env = true, help = "wechat RSS API base URL", help_heading = "API Connection")]
+    #[arg(
+        short = 'a',
+        long,
+        env = "WE_API_BASE",
+        value_name = "URL",
+        hide_env = true,
+        help = "wechat RSS API base URL",
+        help_heading = "API Connection"
+    )]
     api_base: Option<String>,
 
-    #[arg(short = 'u', long, env = "WE_API_USERNAME", hide_env = true, help = "wechat RSS API username", help_heading = "API Connection")]
+    #[arg(
+        short = 'u',
+        long,
+        env = "WE_API_USERNAME",
+        hide_env = true,
+        help = "wechat RSS API username",
+        help_heading = "API Connection"
+    )]
     username: Option<String>,
 
-    #[arg(short = 'p', long, env = "WE_API_PASSWORD", hide_env = true, help = "wechat RSS API password", help_heading = "API Connection")]
+    #[arg(
+        short = 'p',
+        long,
+        env = "WE_API_PASSWORD",
+        hide_env = true,
+        help = "wechat RSS API password",
+        help_heading = "API Connection"
+    )]
     password: Option<String>,
 
-    #[arg(short = 'm', long, env = "WE_TARGET_MPS", value_name = "IDS", hide_env = true, help = "comma-separated MP IDs, or \"all\" (default: all)", help_heading = "Sync")]
+    #[arg(
+        short = 'm',
+        long,
+        env = "WE_TARGET_MPS",
+        value_name = "IDS",
+        hide_env = true,
+        help = "comma-separated MP IDs, or \"all\" (default: all)",
+        help_heading = "Sync"
+    )]
     mp: Option<String>,
 
-    #[arg(short = 'o', long, env = "WE_OUTPUT_DIR", value_name = "DIR", hide_env = true, help = "output directory for articles (default: ./articles)", help_heading = "Sync")]
+    #[arg(
+        short = 'o',
+        long,
+        env = "WE_OUTPUT_DIR",
+        value_name = "DIR",
+        hide_env = true,
+        help = "output directory for articles (default: ./articles)",
+        help_heading = "Sync"
+    )]
     output: Option<String>,
 
-    #[arg(short = 'w', long, env = "WE_WORKSPACE_DIR", value_name = "DIR", hide_env = true, help = "also publish to <DIR>/published/YYYYMMDD/<slug>/", help_heading = "Sync")]
+    #[arg(
+        short = 'w',
+        long,
+        env = "WE_WORKSPACE_DIR",
+        value_name = "DIR",
+        hide_env = true,
+        help = "also publish to <DIR>/published/YYYYMMDD/<slug>/",
+        help_heading = "Sync"
+    )]
     workspace: Option<String>,
 
-    #[arg(short = 's', long, env = "WE_SINCE", value_name = "DATE", hide_env = true, help = "only fetch articles published since DATE (YYYY-MM-DD)", help_heading = "Sync")]
+    #[arg(
+        short = 's',
+        long,
+        env = "WE_SINCE",
+        value_name = "DATE",
+        hide_env = true,
+        help = "only fetch articles published since DATE (YYYY-MM-DD)",
+        help_heading = "Sync"
+    )]
     since: Option<String>,
 
-    #[arg(short = 'e', long, env = "WE_UNTIL", value_name = "DATE", hide_env = true, help = "only fetch articles published until DATE (YYYY-MM-DD)", help_heading = "Sync")]
+    #[arg(
+        short = 'e',
+        long,
+        env = "WE_UNTIL",
+        value_name = "DATE",
+        hide_env = true,
+        help = "only fetch articles published until DATE (YYYY-MM-DD)",
+        help_heading = "Sync"
+    )]
     until: Option<String>,
 
-    #[arg(short = 'l', long, env = "WE_LIMIT", value_name = "N", hide_env = true, help = "max articles to fetch per run (default: 0, unlimited)", help_heading = "Sync")]
+    #[arg(
+        short = 'l',
+        long,
+        env = "WE_LIMIT",
+        value_name = "N",
+        hide_env = true,
+        help = "max articles to fetch per run (default: 0, unlimited)",
+        help_heading = "Sync"
+    )]
     limit: Option<u32>,
 
-    #[arg(short = 'D', long, env = "WE_DOWNLOAD_IMAGES", hide_env = true, help = "download images from HTML content to local imgs/ directory", help_heading = "Sync")]
+    #[arg(
+        short = 'D',
+        long,
+        env = "WE_DOWNLOAD_IMAGES",
+        hide_env = true,
+        help = "download images from HTML content to local imgs/ directory",
+        help_heading = "Sync"
+    )]
     download_images: bool,
 
-    #[arg(short = 'S', long, env = "WE_START_PAGE", value_name = "N", hide_env = true, help = "start page for MP sync (default: 0)", help_heading = "Sync")]
+    #[arg(
+        short = 'S',
+        long,
+        env = "WE_START_PAGE",
+        value_name = "N",
+        hide_env = true,
+        help = "start page for MP sync (default: 0)",
+        help_heading = "Sync"
+    )]
     start_page: Option<i64>,
 
-    #[arg(short = 'E', long, env = "WE_END_PAGE", value_name = "N", hide_env = true, help = "end page for MP sync (default: 1)", help_heading = "Sync")]
+    #[arg(
+        short = 'E',
+        long,
+        env = "WE_END_PAGE",
+        value_name = "N",
+        hide_env = true,
+        help = "end page for MP sync (default: 1)",
+        help_heading = "Sync"
+    )]
     end_page: Option<i64>,
 
-    #[arg(short = 'c', long, default_value = "werss.toml", help_heading = "Config")]
+    #[arg(
+        short = 'c',
+        long,
+        default_value = "werss.toml",
+        help_heading = "Config"
+    )]
     config: String,
 
     #[arg(short = 'I', long, help_heading = "Config")]
@@ -421,7 +519,16 @@ async fn main() -> Result<()> {
 
             let handle = tokio::spawn(async move {
                 let _permit = permit;
-                fetch_and_write(c, &spawn_art, &mp_name, &spawn_dir, &mp_dir, &workspace, download_images).await
+                fetch_and_write(
+                    c,
+                    &spawn_art,
+                    &mp_name,
+                    &spawn_dir,
+                    &mp_dir,
+                    &workspace,
+                    download_images,
+                )
+                .await
             });
             handles.push((art, handle, dir));
         }
