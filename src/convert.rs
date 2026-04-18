@@ -1,3 +1,5 @@
+use anyhow::anyhow;
+
 pub fn slugify(text: &str) -> String {
     let s: String = text
         .to_lowercase()
@@ -101,10 +103,76 @@ pub fn dedent_code_blocks(md: &str) -> String {
     result
 }
 
-pub fn html_to_md(html: &str) -> String {
-    let raw = html2md::parse_html(html);
-    let trimmed = raw.trim();
-    dedent_code_blocks(trimmed)
+pub fn convert_html(html: &str) -> ConversionResult {
+    // 提取 HTML 中所有 img src 的外部 URL
+    let img_urls: Vec<(String, String)> = extract_img_srcs(html);
+
+    let result = html_to_markdown_rs::convert(html, None)
+        .map_err(|e| anyhow!("HTML conversion failed: {}", e))
+        .unwrap();
+    let mut markdown = result.content.unwrap_or_default();
+
+    let mut images = Vec::new();
+    for (i, (url, ext)) in img_urls.iter().enumerate() {
+        let filename = format!("{}.{}", i, ext);
+        let old_ref = format!("]({})", url);
+        let new_ref = format!("](imgs/{})", filename);
+        markdown = markdown.replace(&old_ref, &new_ref);
+        images.push(ExtractedImage {
+            index: i,
+            format: ext.clone(),
+            url: url.clone(),
+        });
+    }
+
+    let markdown = dedent_code_blocks(&markdown);
+    ConversionResult { markdown, images }
+}
+
+/// 从 HTML 中提取所有 <img src="..."> 的 URL 和扩展名
+fn extract_img_srcs(html: &str) -> Vec<(String, String)> {
+    static RE_IMG: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
+        regex::Regex::new(r#"<img[^>]+src=["']([^"']+)["']"#).unwrap()
+    });
+    let mut results = Vec::new();
+    for cap in RE_IMG.captures_iter(html) {
+        let url = cap.get(1).map(|m| m.as_str().to_string()).unwrap_or_default();
+        if url.is_empty() {
+            continue;
+        }
+        let ext = image_ext_from_url(&url);
+        results.push((url, ext));
+    }
+    results
+}
+
+pub fn image_ext_from_url(url: &str) -> String {
+    let path = url.split('?').next().unwrap_or(url);
+    let path_lower = path.to_lowercase();
+    if path_lower.ends_with(".png") {
+        "png".to_string()
+    } else if path_lower.ends_with(".jpg") || path_lower.ends_with(".jpeg") {
+        "jpg".to_string()
+    } else if path_lower.ends_with(".gif") {
+        "gif".to_string()
+    } else if path_lower.ends_with(".webp") {
+        "webp".to_string()
+    } else if path_lower.ends_with(".bmp") {
+        "bmp".to_string()
+    } else {
+        "png".to_string()
+    }
+}
+
+pub struct ExtractedImage {
+    pub index: usize,
+    pub format: String,
+    pub url: String,
+}
+
+pub struct ConversionResult {
+    pub markdown: String,
+    pub images: Vec<ExtractedImage>,
 }
 
 static RE_COVER: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
@@ -168,7 +236,7 @@ pub fn article_to_md(
     description: &str,
     ts: i64,
     html: &str,
-) -> String {
+) -> (String, Vec<ExtractedImage>) {
     let q = |s: &str| -> String {
         let escaped = s.replace('\\', "\\\\").replace('"', "\\\"");
         format!("\"{}\"", escaped)
@@ -194,11 +262,11 @@ pub fn article_to_md(
         }
     }
     fm.push("---".into());
-    let body = if html.is_empty() {
-        String::new()
+    let (body, extracted_images) = if html.is_empty() {
+        (String::new(), Vec::new())
     } else {
-        let md = html_to_md(html);
-        clean_tail(&md)
+        let conv = convert_html(html);
+        (clean_tail(&conv.markdown), conv.images)
     };
-    format!("{}\n{}\n", fm.join("\n"), body)
+    (format!("{}\n{}\n", fm.join("\n"), body), extracted_images)
 }

@@ -48,29 +48,30 @@ CLI flags > Environment variables > werss.toml > .env > System keyring > Interac
 
 | Flag | Env variable | Type | Default | Description |
 |------|-------------|------|---------|-------------|
-| `--api-base <URL>` | `WE_API_BASE` | string | *(empty)* | WeRSS API server URL |
-| `--username <USER>` | `WE_API_USERNAME` | string | *(empty)* | API username |
-| `--password <PASS>` | `WE_API_PASSWORD` | string | *(empty)* | API password |
+| `-a, --api-base <URL>` | `WE_API_BASE` | string | *(empty)* | wechat RSS API base URL |
+| `-u, --username <USERNAME>` | `WE_API_USERNAME` | string | *(empty)* | wechat RSS API username |
+| `-p, --password <PASSWORD>` | `WE_API_PASSWORD` | string | *(empty)* | wechat RSS API password |
 
 ### Sync
 
 | Flag | Env variable | Type | Default | Description |
 |------|-------------|------|---------|-------------|
-| `--mp <IDS>` | `WE_TARGET_MPS` | string | `all` | Comma-separated MP IDs, or `"all"` |
-| `--output <DIR>` | `WE_OUTPUT_DIR` | string | `./articles` | Output directory |
-| `--workspace <DIR>` | `WE_WORKSPACE_DIR` | string | *(empty)* | Workspace publish directory |
-| `--since <DATE>` | `WE_SINCE` | date | *(empty)* | Only fetch articles since DATE (YYYY-MM-DD) |
-| `--until <DATE>` | `WE_UNTIL` | date | *(empty)* | Only fetch articles until DATE (YYYY-MM-DD) |
-| `--limit <N>` | `WE_LIMIT` | u32 | `0` | Max articles per run (0 = no limit) |
-| `--start-page <N>` | `WE_START_PAGE` | i64 | `0` | Start page for MP sync |
-| `--end-page <N>` | `WE_END_PAGE` | i64 | `1` | End page for MP sync |
+| `-m, --mp <IDS>` | `WE_TARGET_MPS` | string | `all` | comma-separated MP IDs, or "all" |
+| `-o, --output <DIR>` | `WE_OUTPUT_DIR` | string | `./articles` | output directory for articles |
+| `-w, --workspace <DIR>` | `WE_WORKSPACE_DIR` | string | *(empty)* | also publish to `<DIR>/published/YYYYMMDD/<slug>/` |
+| `-s, --since <DATE>` | `WE_SINCE` | date | *(empty)* | only fetch articles published since DATE (YYYY-MM-DD) |
+| `-e, --until <DATE>` | `WE_UNTIL` | date | *(empty)* | only fetch articles published until DATE (YYYY-MM-DD) |
+| `-l, --limit <N>` | `WE_LIMIT` | u32 | `0` | max articles to fetch per run (0 = unlimited) |
+| `-D, --download-images` | `WE_DOWNLOAD_IMAGES` | bool | `false` | download images from HTML content to local imgs/ directory |
+| `-S, --start-page <N>` | `WE_START_PAGE` | i64 | `0` | start page for MP sync |
+| `-E, --end-page <N>` | `WE_END_PAGE` | i64 | `1` | end page for MP sync |
 
 ### Config
 
 | Flag | Description |
 |------|-------------|
-| `--config <PATH>` | TOML config file path (default: `werss.toml`) |
-| `--init-config` | Generate a `werss.toml` template and exit |
+| `-c, --config <CONFIG>` | TOML config file path (default: `werss.toml`) |
+| `-I, --init-config` | generate a `werss.toml` template and exit |
 
 ## werss.toml
 
@@ -135,6 +136,7 @@ WE_WORKSPACE_DIR=
 WE_SINCE=2026-01-01
 WE_UNTIL=2026-03-31
 WE_LIMIT=10
+WE_DOWNLOAD_IMAGES=false
 WE_START_PAGE=0
 WE_END_PAGE=1
 ```

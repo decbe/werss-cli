@@ -106,8 +106,24 @@ When set, each article is also published to:
 
 ```
 {workspace}/published/YYYYMMDD/{slug}/{slug}.md
-{workspace}/published/YYYYMMDD/{slug}/imgs/cover.{ext}
+{workspace}/published/YYYYMMDD/{slug}/imgs/cover.{ext}   # if -D is used
 ```
+
+### Download article images
+
+```bash
+werss-cli -D
+```
+
+Downloads all images from article HTML content to `{output}/{mp_id}/YYYYMMDD}/{seq}/imgs/`:
+
+```
+{output}/{mp_id}/YYYYMMDD}/{seq}/imgs/0.png
+{output}/{mp_id}/YYYYMMDD}/{seq}/imgs/1.jpg
+{output}/{mp_id}/YYYYMMDD}/{seq}/imgs/cover.png
+```
+
+Markdown image references are rewritten from external URLs to local `imgs/N.ext` paths.
 
 ### All via environment variables
 

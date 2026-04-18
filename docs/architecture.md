@@ -58,7 +58,7 @@ Content conversion. Key functions:
 
 - `article_to_md()` — produces full Markdown with YAML frontmatter
 - `slugify()` — generates URL-safe filenames from titles
-- `html_to_md()` — wraps `html2md::parse_html()` with code block dedenting
+- `convert_html()` — wraps `html-to-markdown-rs::convert()` with image URL extraction and rewriting
 - `strip_content_html_header()` — removes cover image, h1, and author line from `content_html`
 - `clean_tail()` — removes WeChat UI artifacts from the end of articles
 - `dedent_code_blocks()` — removes common leading whitespace from fenced code blocks
@@ -150,7 +150,7 @@ werss-cli
 | `reqwest` | HTTP client with JSON and native-tls |
 | `tokio` | Async runtime (multi-thread, macros, time, signal) |
 | `clap` | CLI argument parsing with derive and env support |
-| `html2md` | HTML to Markdown conversion |
+| `html-to-markdown-rs` | HTML to Markdown conversion |
 | `serde` / `serde_json` | Serialization/deserialization |
 | `chrono` | Timestamp formatting (no default features, std only) |
 | `dotenvy` | `.env` file loading |
@@ -161,7 +161,7 @@ werss-cli
 
 ### Build note
 
-`html2md` depends on the `panic_unwind` runtime. The release profile cannot use `panic = "abort"`. The current profile uses:
+Release profile is optimized for size:
 
 ```toml
 [profile.release]

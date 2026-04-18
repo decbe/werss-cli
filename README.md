@@ -108,14 +108,14 @@ Each file has YAML frontmatter (title, author, coverImage, url, mp_id, descripti
 - [reqwest](https://crates.io/crates/reqwest) — HTTP client
 - [tokio](https://crates.io/crates/tokio) — async runtime
 - [clap](https://crates.io/crates/clap) — CLI argument parsing
-- [html2md](https://crates.io/crates/html2md) — HTML to Markdown conversion
+- [html-to-markdown-rs](https://crates.io/crates/html-to-markdown-rs) — HTML to Markdown conversion
 - [serde](https://crates.io/crates/serde) / [serde_json](https://crates.io/crates/serde_json) — serialization
 - [chrono](https://crates.io/crates/chrono) — date/time handling
 - [toml](https://crates.io/crates/toml) — config file parsing
 - [anyhow](https://crates.io/crates/anyhow) — error handling
 - [keyring](https://crates.io/crates/keyring) — secure credential storage (cross-platform)
-
-> **Note:** `html2md` requires the `panic_unwind` runtime, so `panic = "abort"` cannot be used in the release profile.
+- [regex](https://crates.io/crates/regex) — HTML image URL extraction
+- [futures](https://crates.io/crates/futures) — async utilities
 
 ## License
 

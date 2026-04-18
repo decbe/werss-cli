@@ -16,135 +16,59 @@ static CANCELLED: AtomicBool = AtomicBool::new(false);
 #[command(
     name = "werss-cli",
     version,
-    about = "Fetch articles from a WeRSS (WeChat RSS) server and save as Markdown files.",
+    about = "fetch articles from wechat RSS API and save as markdown",
     long_about = "\
-Fetches articles from a WeRSS API server (WeChat public accounts) and saves \
-them as Markdown with YAML frontmatter.
+fetch articles from wechat RSS API and save as markdown
 
-USAGE: werss-cli [--mp all|ID1,ID2] [--output DIR] [--workspace DIR]
-  werss-cli --mp all                    # fetch all public accounts
-  werss-cli --mp MP_WXS_123,MP_WXS_456  # fetch specific accounts
-  werss-cli --init-config               # generate werss.toml template
-  werss-cli                             # reads werss.toml + .env
+usage: werss-cli [options]
+  werss-cli -m all                       fetch all public accounts
+  werss-cli -m MP_WXS_123,MP_WXS_456    fetch specific accounts
+  werss-cli -I                           generate werss.toml template
 
-Config priority: CLI flags > env vars > werss.toml > defaults.
-Output: <output>/<mp_id>/YYYYMMDD/01/<slug>.md
-State: each mp_id dir has state.jsonl tracking fetched/failed articles.
-  Re-running skips fetched, retries failed. Exit 0=ok 1=fatal. Logs to stderr."
+config precedence: cli flags > env vars > werss.toml
+output: <output>/<mp_id>/YYYYMMDD/01/<slug>.md"
 )]
 struct Cli {
-    #[arg(
-        long,
-        env = "WE_API_BASE",
-        value_name = "URL",
-        hide_env = true,
-        help = "WeRSS API base URL. Env: WE_API_BASE",
-        help_heading = "API Connection"
-    )]
+    #[arg(short = 'a', long, env = "WE_API_BASE", value_name = "URL", hide_env = true, help = "wechat RSS API base URL", help_heading = "API Connection")]
     api_base: Option<String>,
 
-    #[arg(
-        long,
-        env = "WE_API_USERNAME",
-        hide_env = true,
-        help = "WeRSS API username. Env: WE_API_USERNAME",
-        help_heading = "API Connection"
-    )]
+    #[arg(short = 'u', long, env = "WE_API_USERNAME", hide_env = true, help = "wechat RSS API username", help_heading = "API Connection")]
     username: Option<String>,
 
-    #[arg(
-        long,
-        env = "WE_API_PASSWORD",
-        hide_env = true,
-        help = "WeRSS API password. Env: WE_API_PASSWORD",
-        help_heading = "API Connection"
-    )]
+    #[arg(short = 'p', long, env = "WE_API_PASSWORD", hide_env = true, help = "wechat RSS API password", help_heading = "API Connection")]
     password: Option<String>,
 
-    #[arg(
-        long,
-        env = "WE_TARGET_MPS",
-        value_name = "IDS",
-        hide_env = true,
-        help = "Comma-separated MP IDs, or \"all\". Env: WE_TARGET_MPS",
-        help_heading = "Sync"
-    )]
+    #[arg(short = 'm', long, env = "WE_TARGET_MPS", value_name = "IDS", hide_env = true, help = "comma-separated MP IDs, or \"all\" (default: all)", help_heading = "Sync")]
     mp: Option<String>,
 
-    #[arg(
-        long,
-        env = "WE_OUTPUT_DIR",
-        value_name = "DIR",
-        hide_env = true,
-        help = "Output directory for articles (created if missing). Env: WE_OUTPUT_DIR",
-        help_heading = "Sync"
-    )]
+    #[arg(short = 'o', long, env = "WE_OUTPUT_DIR", value_name = "DIR", hide_env = true, help = "output directory for articles (default: ./articles)", help_heading = "Sync")]
     output: Option<String>,
 
-    #[arg(
-        long,
-        env = "WE_WORKSPACE_DIR",
-        value_name = "DIR",
-        hide_env = true,
-        help = "Also publish to <DIR>/published/YYYYMMDD/<slug>/. Env: WE_WORKSPACE_DIR",
-        help_heading = "Sync"
-    )]
+    #[arg(short = 'w', long, env = "WE_WORKSPACE_DIR", value_name = "DIR", hide_env = true, help = "also publish to <DIR>/published/YYYYMMDD/<slug>/", help_heading = "Sync")]
     workspace: Option<String>,
 
-    #[arg(
-        long,
-        env = "WE_SINCE",
-        value_name = "DATE",
-        hide_env = true,
-        help = "Only fetch articles published since DATE (YYYY-MM-DD). Env: WE_SINCE",
-        help_heading = "Sync"
-    )]
+    #[arg(short = 's', long, env = "WE_SINCE", value_name = "DATE", hide_env = true, help = "only fetch articles published since DATE (YYYY-MM-DD)", help_heading = "Sync")]
     since: Option<String>,
 
-    #[arg(
-        long,
-        env = "WE_UNTIL",
-        value_name = "DATE",
-        hide_env = true,
-        help = "Only fetch articles published until DATE (YYYY-MM-DD). Env: WE_UNTIL",
-        help_heading = "Sync"
-    )]
+    #[arg(short = 'e', long, env = "WE_UNTIL", value_name = "DATE", hide_env = true, help = "only fetch articles published until DATE (YYYY-MM-DD)", help_heading = "Sync")]
     until: Option<String>,
 
-    #[arg(
-        long,
-        env = "WE_LIMIT",
-        value_name = "N",
-        hide_env = true,
-        help = "Max articles to fetch per run (0 = no limit). Env: WE_LIMIT",
-        help_heading = "Sync"
-    )]
+    #[arg(short = 'l', long, env = "WE_LIMIT", value_name = "N", hide_env = true, help = "max articles to fetch per run (default: 0, unlimited)", help_heading = "Sync")]
     limit: Option<u32>,
 
-    #[arg(
-        long,
-        env = "WE_START_PAGE",
-        hide_env = true,
-        help = "Start page for MP sync. Env: WE_START_PAGE",
-        help_heading = "Sync"
-    )]
+    #[arg(short = 'D', long, env = "WE_DOWNLOAD_IMAGES", hide_env = true, help = "download images from HTML content to local imgs/ directory", help_heading = "Sync")]
+    download_images: bool,
+
+    #[arg(short = 'S', long, env = "WE_START_PAGE", value_name = "N", hide_env = true, help = "start page for MP sync (default: 0)", help_heading = "Sync")]
     start_page: Option<i64>,
 
-    #[arg(
-        long,
-        env = "WE_END_PAGE",
-        hide_env = true,
-        help = "End page for MP sync. Env: WE_END_PAGE",
-        help_heading = "Sync"
-    )]
+    #[arg(short = 'E', long, env = "WE_END_PAGE", value_name = "N", hide_env = true, help = "end page for MP sync (default: 1)", help_heading = "Sync")]
     end_page: Option<i64>,
 
-    #[arg(long, default_value = "werss.toml", help_heading = "Config")]
-    /// TOML config file path (use --init-config to generate)
+    #[arg(short = 'c', long, default_value = "werss.toml", help_heading = "Config")]
     config: String,
 
-    #[arg(long, help_heading = "Config")]
-    /// Generate a werss.toml template at --config path and exit
+    #[arg(short = 'I', long, help_heading = "Config")]
     init_config: bool,
 }
 
@@ -161,6 +85,7 @@ struct Resolved {
     limit: u32,
     start_page: i64,
     end_page: i64,
+    download_images: bool,
 }
 
 fn parse_date(s: &str) -> Option<i64> {
@@ -205,6 +130,7 @@ fn resolve(cli: &Cli) -> Resolved {
         limit: cli.limit.unwrap_or(cfg.sync.limit),
         start_page: cli.start_page.unwrap_or(cfg.sync.start_page),
         end_page: cli.end_page.unwrap_or(cfg.sync.end_page),
+        download_images: cli.download_images,
     }
 }
 
@@ -440,10 +366,11 @@ async fn main() -> Result<()> {
             }
         }
         eprintln!(
-            "  {} skipped, {} exhausted, {} to fetch",
+            "  {} skipped, {} exhausted, {} to fetch (limit={})",
             articles.len() - pending.len() - exhausted as usize,
             exhausted,
-            pending.len()
+            pending.len(),
+            r.limit
         );
 
         if pending.is_empty() {
@@ -487,13 +414,14 @@ async fn main() -> Result<()> {
             let c = Arc::clone(&c);
             let mp_name = mp.mp_name.clone();
             let workspace = r.workspace.clone();
+            let download_images = r.download_images;
             let mp_dir = mp_dir.clone();
             let spawn_art = art.clone();
             let spawn_dir = dir.clone();
 
             let handle = tokio::spawn(async move {
                 let _permit = permit;
-                fetch_and_write(&c, &spawn_art, &mp_name, &spawn_dir, &mp_dir, &workspace).await
+                fetch_and_write(c, &spawn_art, &mp_name, &spawn_dir, &mp_dir, &workspace, download_images).await
             });
             handles.push((art, handle, dir));
         }
@@ -588,12 +516,13 @@ async fn resolve_mps(c: &client::WeClient, mp: &str) -> Result<Vec<client::MpInf
 }
 
 async fn fetch_and_write(
-    c: &client::WeClient,
+    c: Arc<client::WeClient>,
     art: &client::ArticleInfo,
     mp_name: &str,
     dir: &Path,
     mp_dir: &Path,
     workspace: &str,
+    download_images: bool,
 ) -> Result<(String, bool)> {
     let mut retries = 0u32;
     let tid = loop {
@@ -633,7 +562,7 @@ async fn fetch_and_write(
         anyhow::bail!("Empty title in article detail");
     }
 
-    let md = convert::article_to_md(
+    let (md, extracted_images) = convert::article_to_md(
         &detail.title,
         mp_name,
         &detail.mp_id,
@@ -646,6 +575,58 @@ async fn fetch_and_write(
     let slug = convert::slugify(&detail.title);
     let path = dir.join(format!("{}.md", slug));
     std::fs::write(&path, &md).map_err(|e| anyhow!("Failed to write {}: {}", path.display(), e))?;
+    if download_images {
+        let imgs_dir = dir.join("imgs");
+        let has_images = !extracted_images.is_empty() || !detail.pic_url.is_empty();
+        if has_images {
+            if let Err(e) = std::fs::create_dir_all(&imgs_dir) {
+                eprintln!("  [WARN] Failed to create imgs dir: {}", e);
+            } else {
+                let mut handles = Vec::new();
+                if !detail.pic_url.is_empty() {
+                    let url = detail.pic_url.clone();
+                    let imgs_dir = imgs_dir.clone();
+                    let c = Arc::clone(&c);
+                    handles.push(tokio::spawn(async move {
+                        match c.download_image(&url).await {
+                            Ok(data) => {
+                                let ext = convert::image_ext_from_url(&url);
+                                let path = imgs_dir.join(format!("cover.{}", ext));
+                                if let Err(e) = std::fs::write(&path, &data) {
+                                    eprintln!("  [WARN] Failed to write cover image: {}", e);
+                                }
+                            }
+                            Err(e) => {
+                                eprintln!("  [WARN] Failed to download cover image: {}", e);
+                            }
+                        }
+                    }));
+                }
+                for img in &extracted_images {
+                    let url = img.url.clone();
+                    let imgs_dir = imgs_dir.clone();
+                    let filename = format!("{}.{}", img.index, img.format);
+                    let c = Arc::clone(&c);
+                    handles.push(tokio::spawn(async move {
+                        match c.download_image(&url).await {
+                            Ok(data) => {
+                                let path = imgs_dir.join(&filename);
+                                if let Err(e) = std::fs::write(&path, &data) {
+                                    eprintln!("  [WARN] Failed to write image {}: {}", filename, e);
+                                }
+                            }
+                            Err(e) => {
+                                eprintln!("  [WARN] Failed to download image {}: {}", filename, e);
+                            }
+                        }
+                    }));
+                }
+                for h in handles {
+                    let _ = h.await;
+                }
+            }
+        }
+    }
 
     let rel = path
         .strip_prefix(mp_dir)
@@ -677,7 +658,7 @@ async fn fetch_and_write(
 }
 
 async fn publish_to_workspace(
-    c: &client::WeClient,
+    c: Arc<client::WeClient>,
     pic_url: &str,
     ts: i64,
     slug: &str,
@@ -695,7 +676,7 @@ async fn publish_to_workspace(
     }
     if !pic_url.is_empty() {
         if let Ok(bytes) = c.download_image(pic_url).await {
-            let ext = infer_image_ext(pic_url);
+            let ext = convert::image_ext_from_url(pic_url);
             let img_path = td.join("imgs").join(format!("cover.{}", ext));
             let _ = std::fs::write(&img_path, &bytes);
         }
@@ -707,20 +688,6 @@ async fn publish_to_workspace(
     }
     eprintln!("  [WORKSPACE] -> {}/{}/{}", ds, slug, slug);
     true
-}
-
-fn infer_image_ext(url: &str) -> &'static str {
-    let path = url.split('?').next().unwrap_or(url);
-    let path_lower = path.to_lowercase();
-    if path_lower.ends_with(".jpg") || path_lower.ends_with(".jpeg") {
-        "jpg"
-    } else if path_lower.ends_with(".webp") {
-        "webp"
-    } else if path_lower.ends_with(".gif") {
-        "gif"
-    } else {
-        "png"
-    }
 }
 
 fn clean_empty_dir(dir: &Path) {
