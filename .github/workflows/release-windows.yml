@@ -24,7 +24,7 @@ jobs:
       - name: Package
         run: |
           mkdir -p dist
-          powershell -Command "Compress-Archive -Path target/release/werss.exe -DestinationPath dist/werss-cli-windows-x86_64.zip"
+          powershell -Command "Compress-Archive -Path target/release/werss-cli.exe -DestinationPath dist/werss-cli-windows-x86_64.zip"
           powershell -Command "(Get-FileHash dist/werss-cli-windows-x86_64.zip -Algorithm SHA256).Hash | Set-Content dist/werss-cli-windows-x86_64.zip.sha256"
 
       - name: Upload Release Asset
