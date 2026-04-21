@@ -1,0 +1,54 @@
+name: Release macOS Binary
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build aarch64 binary
+        run: |
+          cargo build --release --target aarch64-apple-darwin
+          mv target/aarch64-apple-darwin/release/werss-cli target/aarch64-apple-darwin/werss-cli
+
+      - name: Build x86_64 binary
+        run: |
+          rustup target add x86_64-apple-darwin
+          cargo build --release --target x86_64-apple-darwin
+          mv target/x86_64-apple-darwin/release/werss-cli target/x86_64-apple-darwin/werss-cli
+
+      - name: Create universal binary
+        run: |
+          mkdir -p dist
+          lipo -create \
+            target/aarch64-apple-darwin/werss-cli \
+            target/x86_64-apple-darwin/werss-cli \
+            -output dist/werss-cli
+
+      - name: Create tarball
+        run: |
+          tar -czvf dist/werss-cli-macos-universal.tar.gz -C dist werss-cli
+
+      - name: Generate SHA256 checksum
+        run: |
+          sha256sum dist/werss-cli-macos-universal.tar.gz | awk '{print $1}' > dist/werss-cli-macos-universal.tar.gz.sha256
+
+      - name: Upload Release Asset
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/werss-cli-macos-universal.tar.gz
+            dist/werss-cli-macos-universal.tar.gz.sha256
+          generate_release_notes: true
