@@ -27,11 +27,14 @@ jobs:
       - name: Package
         run: |
           mkdir -p dist
-          tar -czvf dist/werss-cli-linux-x86_64.tar.gz -C target/release werss-cli
+          cp target/release/werss-cli dist/werss-cli-linux-x86_64
+          tar -czvf dist/werss-cli-linux-x86_64.tar.gz -C dist werss-cli-linux-x86_64
           sha256sum dist/werss-cli-linux-x86_64.tar.gz | awk '{print $1}' > dist/werss-cli-linux-x86_64.tar.gz.sha256
 
       - name: Upload Release Asset
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/*.tar.gz dist/*.sha256
+          files: |
+            dist/werss-cli-linux-x86_64.tar.gz
+            dist/werss-cli-linux-x86_64.tar.gz.sha256
           generate_release_notes: true

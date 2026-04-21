@@ -24,11 +24,14 @@ jobs:
       - name: Package
         run: |
           mkdir -p dist
-          powershell -Command "Compress-Archive -Path target/release/werss-cli.exe -DestinationPath dist/werss-cli-windows-x86_64.zip"
+          cp target/release/werss-cli.exe dist/werss-cli-windows-x86_64.exe
+          powershell -Command "Compress-Archive -Path dist/werss-cli-windows-x86_64.exe -DestinationPath dist/werss-cli-windows-x86_64.zip"
           powershell -Command "(Get-FileHash dist/werss-cli-windows-x86_64.zip -Algorithm SHA256).Hash | Set-Content dist/werss-cli-windows-x86_64.zip.sha256"
 
       - name: Upload Release Asset
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/*.zip dist/*.sha256
+          files: |
+            dist/werss-cli-windows-x86_64.zip
+            dist/werss-cli-windows-x86_64.zip.sha256
           generate_release_notes: true
